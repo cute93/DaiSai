@@ -1,8 +1,12 @@
 package com.ccteacher.daisai.ui.dice
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,7 +94,10 @@ fun BettingSuggestionPanel(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn() + slideInVertically { it / 2 },
+        enter = fadeIn(tween(400)) +
+                scaleIn(initialScale = 0.85f, animationSpec = tween(400)) +
+                slideInVertically(tween(400)) { it / 3 },
+        exit = fadeOut(tween(300)) + slideOutVertically(tween(300)) { it / 3 },
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(top = 8.dp)) {

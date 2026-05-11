@@ -1,7 +1,7 @@
 package com.ccteacher.daisai.ui.dice
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -24,7 +24,9 @@ fun DiceRollAnimation(
     modifier: Modifier = Modifier
 ) {
     var displayValue by remember { mutableIntStateOf(targetValue) }
-    val rotation = remember { Animatable(0f) }
+    val rotationX = remember { Animatable(0f) }
+    val rotationY = remember { Animatable(0f) }
+    val rotationZ = remember { Animatable(0f) }
     val scale = remember { Animatable(1f) }
 
     LaunchedEffect(rollKey) {
@@ -33,34 +35,58 @@ fun DiceRollAnimation(
             return@LaunchedEffect
         }
 
-        // Phase 1: Rolling (1500ms) — 회전과 눈금 변경 병렬 실행
+        // Phase 1: Casino Rolling (2000ms) — X/Y/Z 3축 회전 + 빠른 숫자 변경
         coroutineScope {
             launch {
-                rotation.animateTo(
-                    targetValue = rotation.value + 720f,
-                    animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
+                rotationX.animateTo(
+                    targetValue = rotationX.value + 540f,
+                    animationSpec = tween(durationMillis = 2000, easing = FastOutSlowInEasing)
                 )
             }
             launch {
-                val endTime = System.currentTimeMillis() + 1400L
+                rotationY.animateTo(
+                    targetValue = rotationY.value + 720f,
+                    animationSpec = tween(durationMillis = 2000, easing = FastOutSlowInEasing)
+                )
+            }
+            launch {
+                rotationZ.animateTo(
+                    targetValue = rotationZ.value + 360f,
+                    animationSpec = tween(durationMillis = 2000, easing = FastOutSlowInEasing)
+                )
+            }
+            launch {
+                val endTime = System.currentTimeMillis() + 1800L
                 while (System.currentTimeMillis() < endTime) {
                     displayValue = (1..6).random()
-                    delay(80)
+                    delay(50)
                 }
             }
         }
 
-        // Phase 2: Settling (700ms) — 최종 눈금 + bounce 착지
+        // Phase 2: Landing — 앞면 복귀 + 임팩트 bounce
         displayValue = targetValue
         coroutineScope {
             launch {
-                scale.animateTo(1.18f, tween(durationMillis = 130))
-                scale.animateTo(1.0f, spring(dampingRatio = 0.4f, stiffness = 300f))
+                scale.animateTo(1.25f, tween(durationMillis = 100))
+                scale.animateTo(1.0f, spring(dampingRatio = 0.35f, stiffness = 450f))
             }
             launch {
-                rotation.animateTo(
-                    targetValue = rotation.value + 25f,
-                    animationSpec = spring(dampingRatio = 0.5f, stiffness = 120f)
+                rotationX.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(dampingRatio = 0.55f, stiffness = 180f)
+                )
+            }
+            launch {
+                rotationY.animateTo(
+                    targetValue = 0f,
+                    animationSpec = spring(dampingRatio = 0.55f, stiffness = 180f)
+                )
+            }
+            launch {
+                rotationZ.animateTo(
+                    targetValue = rotationZ.value + 20f,
+                    animationSpec = spring(dampingRatio = 0.4f, stiffness = 120f)
                 )
             }
         }
@@ -71,9 +97,12 @@ fun DiceRollAnimation(
     DiceFace(
         value = displayValue,
         modifier = modifier.graphicsLayer {
-            rotationZ = rotation.value % 360f
+            this.rotationX = rotationX.value % 360f
+            this.rotationY = rotationY.value % 360f
+            this.rotationZ = rotationZ.value % 360f
             scaleX = scale.value
             scaleY = scale.value
+            cameraDistance = 12f * density
         }
     )
 }
