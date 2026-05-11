@@ -1,8 +1,11 @@
 package com.ccteacher.daisai.ui.dice
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -109,11 +112,12 @@ fun DiceFace3D(
     rotX: Float,
     rotY: Float,
     rotZ: Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    diceSize: Dp = 80.dp
 ) {
     val faces = STANDARD_FACES[targetValue] ?: STANDARD_FACES[1]!!
 
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.size(diceSize)) {
         val cx = size.width / 2f
         val cy = size.height / 2f
         val r  = size.width * 0.38f
