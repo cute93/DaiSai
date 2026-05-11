@@ -94,15 +94,14 @@ fun DiceRollAnimation(
         onDone()
     }
 
-    DiceFace(
-        value = displayValue,
+    DiceFace3D(
+        targetValue = displayValue,
+        rotX = rotationX.value,
+        rotY = rotationY.value,
+        rotZ = rotationZ.value,
         modifier = modifier.graphicsLayer {
-            this.rotationX = rotationX.value % 360f
-            this.rotationY = rotationY.value % 360f
-            this.rotationZ = rotationZ.value % 360f
             scaleX = scale.value
             scaleY = scale.value
-            cameraDistance = 12f * density
         }
     )
 }
