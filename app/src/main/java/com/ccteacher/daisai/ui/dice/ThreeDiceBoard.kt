@@ -91,7 +91,7 @@ fun ThreeDiceBoard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text("잔액: \$${state.balance}", color = GoldAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text("배팅: \$${state.currentBet}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("배팅: \$${state.bets.values.sum()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         }
 
         Spacer(Modifier.height(24.dp))
@@ -153,7 +153,7 @@ fun ThreeDiceBoard(
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Button(
                             onClick = { vm.roll() },
-                            enabled = state.selectedBetType != null && state.currentBet > 0
+                            enabled = state.bets.values.any { it > 0 }
                         ) {
                             Text("🎲 굴리기")
                         }
@@ -197,10 +197,12 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf(BetType.Big to "대", BetType.Small to "소", BetType.Odd to "홀", BetType.Even to "짝")
             .forEach { (type, label) ->
+                val bet = state.bets[type] ?: 0
                 BetChipButton(
                     label = label,
-                    subLabel = null,
-                    selected = state.selectedBetType == type,
+                    subLabel = if (bet > 0) "\$$bet" else null,
+                    selected = state.activeBetType == type,
+                    hasBet = bet > 0,
                     onClick = { vm.selectBetType(type) },
                     modifier = Modifier.weight(1f)
                 )
@@ -214,11 +216,14 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
     listOf(4..10, 11..17).forEach { range ->
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             range.forEach { n ->
+                val type = BetType.Total(n)
+                val bet = state.bets[type] ?: 0
                 BetChipButton(
                     label = "$n",
-                    subLabel = "${SumPayouts[n]}:1",
-                    selected = state.selectedBetType == BetType.Total(n),
-                    onClick = { vm.selectBetType(BetType.Total(n)) },
+                    subLabel = if (bet > 0) "\$$bet" else "${SumPayouts[n]}:1",
+                    selected = state.activeBetType == type,
+                    hasBet = bet > 0,
+                    onClick = { vm.selectBetType(type) },
                     modifier = Modifier.weight(1f),
                     compact = true
                 )
@@ -233,11 +238,14 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
     BetSectionLabel("단일 숫자  (1개 1:1  /  2개 2:1  /  3개 3:1)")
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         (1..6).forEach { n ->
+            val type = BetType.Single(n)
+            val bet = state.bets[type] ?: 0
             BetChipButton(
                 label = "$n",
-                subLabel = null,
-                selected = state.selectedBetType == BetType.Single(n),
-                onClick = { vm.selectBetType(BetType.Single(n)) },
+                subLabel = if (bet > 0) "\$$bet" else null,
+                selected = state.activeBetType == type,
+                hasBet = bet > 0,
+                onClick = { vm.selectBetType(type) },
                 modifier = Modifier.weight(1f)
             )
         }
@@ -252,7 +260,7 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
         listOf(10, 50, 100).forEach { chip ->
             Button(
                 onClick = { vm.addChip(chip) },
-                enabled = state.balance - state.currentBet >= chip
+                enabled = state.activeBetType != null && state.balance - state.bets.values.sum() >= chip
             ) {
                 Text("\$$chip")
             }
@@ -266,8 +274,8 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("현재 배팅: \$${state.currentBet}", color = Color.White, fontWeight = FontWeight.SemiBold)
-        OutlinedButton(onClick = { vm.clearBet() }, enabled = state.currentBet > 0) {
+        Text("현재 배팅: \$${state.bets.values.sum()}", color = Color.White, fontWeight = FontWeight.SemiBold)
+        OutlinedButton(onClick = { vm.clearBet() }, enabled = state.bets.isNotEmpty()) {
             Text("초기화", color = Color.White)
         }
     }
@@ -278,11 +286,16 @@ private fun BetChipButton(
     label: String,
     subLabel: String?,
     selected: Boolean,
+    hasBet: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
-    val bg = if (selected) GoldAccent else Color.White.copy(alpha = 0.2f)
+    val bg = when {
+        selected -> GoldAccent
+        hasBet   -> Color(0xFF2E7D32)
+        else     -> Color.White.copy(alpha = 0.2f)
+    }
     val textColor = if (selected) Color.Black else Color.White
     Button(
         onClick = onClick,
@@ -305,14 +318,17 @@ private fun BetChipButton(
 private fun ResultSection(state: DiceUiState, onNextRound: () -> Unit, onFinish: () -> Unit) {
     val won = state.isWin == true
     val winAmount = state.lastWinAmount
-    val betLabel = when (val bt = state.selectedBetType) {
-        is BetType.Big    -> "대 (Big)"
-        is BetType.Small  -> "소 (Small)"
-        is BetType.Odd    -> "홀 (Odd)"
-        is BetType.Even   -> "짝 (Even)"
-        is BetType.Total  -> "합계 ${bt.sum}  (${SumPayouts[bt.sum]}:1)"
-        is BetType.Single -> "단일 숫자 ${bt.num}"
-        null              -> ""
+    val betLabel = if (state.bets.size == 1) {
+        when (val bt = state.bets.keys.first()) {
+            is BetType.Big    -> "대 (Big)"
+            is BetType.Small  -> "소 (Small)"
+            is BetType.Odd    -> "홀 (Odd)"
+            is BetType.Even   -> "짝 (Even)"
+            is BetType.Total  -> "합계 ${bt.sum}  (${SumPayouts[bt.sum]}:1)"
+            is BetType.Single -> "단일 숫자 ${bt.num}"
+        }
+    } else {
+        "${state.bets.size}종류 중복 배팅"
     }
     Card(
         modifier = Modifier.fillMaxWidth(),

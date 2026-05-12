@@ -24,8 +24,8 @@ data class DiceUiState(
     val doneCount: Int = 0,
     val suggestions: List<BettingRecommendation> = emptyList(),
     val balance: Int = 1000,
-    val currentBet: Int = 0,
-    val selectedBetType: BetType? = null,
+    val bets: Map<BetType, Int> = emptyMap(),
+    val activeBetType: BetType? = null,
     val phase: GamePhase = GamePhase.BETTING,
     val lastWinAmount: Int = 0,
     val isWin: Boolean? = null
@@ -38,24 +38,28 @@ class DiceRollViewModel : ViewModel() {
 
     fun selectBetType(type: BetType) {
         _uiState.update {
-            it.copy(selectedBetType = if (it.selectedBetType == type) null else type)
+            it.copy(activeBetType = if (it.activeBetType == type) null else type)
         }
     }
 
     fun addChip(amount: Int) {
-        _uiState.update {
-            val canAdd = minOf(amount, it.balance - it.currentBet)
-            if (canAdd > 0) it.copy(currentBet = it.currentBet + canAdd) else it
+        _uiState.update { state ->
+            val active = state.activeBetType ?: return@update state
+            val canAdd = minOf(amount, state.balance - state.bets.values.sum())
+            if (canAdd <= 0) return@update state
+            val newBets = state.bets.toMutableMap()
+            newBets[active] = (newBets[active] ?: 0) + canAdd
+            state.copy(bets = newBets)
         }
     }
 
     fun clearBet() {
-        _uiState.update { it.copy(currentBet = 0, selectedBetType = null) }
+        _uiState.update { it.copy(bets = emptyMap(), activeBetType = null) }
     }
 
     fun roll() {
         val s = _uiState.value
-        if (s.selectedBetType == null || s.currentBet <= 0) return
+        if (s.bets.isEmpty() || s.bets.values.all { it == 0 }) return
         _uiState.update {
             it.copy(
                 results = List(3) { (1..6).random() },
@@ -76,21 +80,18 @@ class DiceRollViewModel : ViewModel() {
             if (newCount < 3) return@update state.copy(doneCount = newCount)
 
             val suggestions = evaluateBets(state.results[0], state.results[1], state.results[2])
-            val betType = state.selectedBetType ?: return@update state.copy(
-                doneCount = newCount, isRolling = false,
-                suggestions = suggestions, phase = GamePhase.RESULT
-            )
-
-            val (won, multiplier) = resolveBet(betType, state.results)
-            val winAmount = if (won) state.currentBet * multiplier else -state.currentBet
+            val totalWin = state.bets.entries.sumOf { (betType, betAmount) ->
+                val (won, multiplier) = resolveBet(betType, state.results)
+                if (won) betAmount * multiplier else -betAmount
+            }
             state.copy(
                 doneCount = newCount,
                 isRolling = false,
                 suggestions = suggestions,
                 phase = GamePhase.RESULT,
-                balance = state.balance + winAmount,
-                lastWinAmount = winAmount,
-                isWin = won
+                balance = state.balance + totalWin,
+                lastWinAmount = totalWin,
+                isWin = totalWin > 0
             )
         }
     }
@@ -98,8 +99,8 @@ class DiceRollViewModel : ViewModel() {
     fun nextRound() {
         _uiState.update {
             it.copy(
-                currentBet = 0,
-                selectedBetType = null,
+                bets = emptyMap(),
+                activeBetType = null,
                 phase = GamePhase.BETTING,
                 isWin = null,
                 lastWinAmount = 0,
