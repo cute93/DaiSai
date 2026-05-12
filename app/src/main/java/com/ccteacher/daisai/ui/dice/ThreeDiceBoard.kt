@@ -3,10 +3,12 @@ package com.ccteacher.daisai.ui.dice
 import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,6 +26,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,6 +54,7 @@ fun ThreeDiceBoard(
 ) {
     val state by vm.uiState.collectAsState()
     val context = LocalContext.current
+    var showStats by remember { mutableStateOf(false) }
 
     val sum = state.results.sum()
     val isTriple = state.results.let { it[0] == it[1] && it[1] == it[2] }
@@ -68,33 +74,27 @@ fun ThreeDiceBoard(
     }
     val holjjakColor = if (sum % 2 == 1) Color(0xFFEF5350) else Color(0xFF42A5F5)
 
+    Box(modifier = modifier) {
     Column(
-        modifier = modifier
+        modifier = Modifier
+            .fillMaxSize()
             .background(TableGreen)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 48.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 타이틀
-        Text(
-            text = "다이사이",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = Color.White
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        // 잔액 / 배팅 표시
+        // 타이틀 + 잔액 한 줄
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("잔액: \$${state.balance}", color = GoldAccent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-            Text("배팅: \$${state.bets.values.sum()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("다이사이", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            Text("잔액: \$${state.balance}", color = GoldAccent, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+            Text("배팅: \$${state.bets.values.sum()}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp)
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(4.dp))
 
         // 주사위 + 양쪽 레이블
         Row(
@@ -104,44 +104,45 @@ fun ThreeDiceBoard(
         ) {
             Text(
                 text = daesoText,
-                fontSize = 48.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = daesoColor,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(56.dp)
+                modifier = Modifier.width(26.dp)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                DiceRollAnimation(targetValue = state.results[0], rollKey = state.rollKey, onDone = { vm.onDiceDone() })
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
-                    DiceRollAnimation(targetValue = state.results[1], rollKey = state.rollKey, onDone = { vm.onDiceDone() })
-                    DiceRollAnimation(targetValue = state.results[2], rollKey = state.rollKey, onDone = { vm.onDiceDone() })
+                val rollDone = state.rollKey > 0 && state.phase != GamePhase.ROLLING
+                DiceRollAnimation(targetValue = state.results[0], rollKey = state.rollKey, rollDone = rollDone, onDone = { vm.onDiceDone() })
+                Spacer(Modifier.height(3.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    DiceRollAnimation(targetValue = state.results[1], rollKey = state.rollKey, rollDone = rollDone, onDone = { vm.onDiceDone() })
+                    DiceRollAnimation(targetValue = state.results[2], rollKey = state.rollKey, rollDone = rollDone, onDone = { vm.onDiceDone() })
                 }
             }
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(4.dp))
             Text(
                 text = holjjakText,
-                fontSize = 48.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = holjjakColor,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(56.dp)
+                modifier = Modifier.width(26.dp)
             )
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(2.dp))
 
         Text(
             text = if (state.rollKey > 0) "합계: $sum" else "합계: --",
-            style = MaterialTheme.typography.titleLarge,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(3.dp))
         HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(3.dp))
 
         when (state.phase) {
             GamePhase.BETTING -> {
@@ -149,36 +150,43 @@ fun ThreeDiceBoard(
                     GameOverSection(onRestart = { vm.resetGame() })
                 } else {
                     BettingSection(state = state, vm = vm)
-                    Spacer(Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Spacer(Modifier.height(4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         Button(
                             onClick = { vm.roll() },
-                            enabled = state.bets.values.any { it > 0 }
+                            enabled = state.bets.values.any { it > 0 },
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
                         ) {
-                            Text("🎲 굴리기")
+                            Text("🎲 굴리기", fontSize = 12.sp)
                         }
-                        OutlinedButton(onClick = { (context as? Activity)?.finish() }) {
-                            Text("끝내기", color = Color.White)
+                        OutlinedButton(onClick = { showStats = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                            Text("통계", color = Color.White, fontSize = 12.sp)
+                        }
+                        OutlinedButton(onClick = { (context as? Activity)?.finish() }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                            Text("끝내기", color = Color.White, fontSize = 12.sp)
                         }
                     }
                 }
             }
 
             GamePhase.ROLLING -> {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Button(onClick = {}, enabled = false) { Text("🎲 굴리는 중...") }
-                    OutlinedButton(onClick = { (context as? Activity)?.finish() }) {
-                        Text("끝내기", color = Color.White)
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Button(onClick = {}, enabled = false, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) { Text("🎲 굴리는 중...", fontSize = 12.sp) }
+                    OutlinedButton(onClick = { showStats = true }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                        Text("통계", color = Color.White, fontSize = 12.sp)
+                    }
+                    OutlinedButton(onClick = { (context as? Activity)?.finish() }, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) {
+                        Text("끝내기", color = Color.White, fontSize = 12.sp)
                     }
                 }
             }
 
             GamePhase.RESULT -> {
-                ResultSection(state = state, onNextRound = { vm.nextRound() }, onFinish = { (context as? Activity)?.finish() })
+                ResultSection(state = state, onNextRound = { vm.nextRound() }, onShowStats = { showStats = true }, onFinish = { (context as? Activity)?.finish() })
                 if (state.suggestions.isNotEmpty()) {
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(6.dp))
                     HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
                 }
                 BettingSuggestionPanel(
                     suggestions = state.suggestions,
@@ -187,6 +195,10 @@ fun ThreeDiceBoard(
                 )
             }
         }
+    }
+    if (showStats) {
+        StatsScreen(modifier = Modifier.fillMaxSize(), onClose = { showStats = false })
+    }
     }
 }
 
@@ -209,12 +221,12 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
             }
     }
 
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(4.dp))
 
     // ── 합계 배팅 ──
     BetSectionLabel("합계 배팅")
     listOf(4..10, 11..17).forEach { range ->
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
             range.forEach { n ->
                 val type = BetType.Total(n)
                 val bet = state.bets[type] ?: 0
@@ -229,14 +241,14 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
                 )
             }
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(3.dp))
     }
 
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(2.dp))
 
     // ── 단일 숫자 ──
-    BetSectionLabel("단일 숫자  (1개 1:1  /  2개 2:1  /  3개 3:1)")
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    BetSectionLabel("단일 숫자  (1개 1:1 / 2개 2:1 / 3개 3:1)")
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         (1..6).forEach { n ->
             val type = BetType.Single(n)
             val bet = state.bets[type] ?: 0
@@ -251,32 +263,33 @@ private fun BettingSection(state: DiceUiState, vm: DiceRollViewModel) {
         }
     }
 
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(4.dp))
     HorizontalDivider(color = Color.White.copy(alpha = 0.3f))
-    Spacer(Modifier.height(12.dp))
+    Spacer(Modifier.height(4.dp))
 
-    // 칩 버튼
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        listOf(10, 50, 100).forEach { chip ->
-            Button(
-                onClick = { vm.addChip(chip) },
-                enabled = state.activeBetType != null && state.balance - state.bets.values.sum() >= chip
-            ) {
-                Text("\$$chip")
-            }
-        }
-    }
-
-    Spacer(Modifier.height(8.dp))
-
+    // 칩 버튼 + 현재배팅 한 줄
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("현재 배팅: \$${state.bets.values.sum()}", color = Color.White, fontWeight = FontWeight.SemiBold)
-        OutlinedButton(onClick = { vm.clearBet() }, enabled = state.bets.isNotEmpty()) {
-            Text("초기화", color = Color.White)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(10, 50, 100).forEach { chip ->
+                Button(
+                    onClick = { vm.addChip(chip) },
+                    enabled = state.activeBetType != null && state.balance - state.bets.values.sum() >= chip,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text("\$$chip", fontSize = 12.sp)
+                }
+            }
+        }
+        OutlinedButton(
+            onClick = { vm.clearBet() },
+            enabled = state.bets.isNotEmpty(),
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+        ) {
+            Text("초기화", color = Color.White, fontSize = 12.sp)
         }
     }
 }
@@ -301,21 +314,21 @@ private fun BetChipButton(
         onClick = onClick,
         modifier = modifier,
         colors = ButtonDefaults.buttonColors(containerColor = bg),
-        contentPadding = if (compact) PaddingValues(horizontal = 2.dp, vertical = 6.dp) else PaddingValues(vertical = 8.dp)
+        contentPadding = if (compact) PaddingValues(horizontal = 2.dp, vertical = 4.dp) else PaddingValues(vertical = 4.dp)
     ) {
         if (subLabel != null) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textColor)
-                Text(subLabel, fontSize = 9.sp, color = textColor.copy(alpha = 0.85f))
+                Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColor)
+                Text(subLabel, fontSize = 8.sp, color = textColor.copy(alpha = 0.85f))
             }
         } else {
-            Text(label, fontWeight = FontWeight.Bold, color = textColor)
+            Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColor)
         }
     }
 }
 
 @Composable
-private fun ResultSection(state: DiceUiState, onNextRound: () -> Unit, onFinish: () -> Unit) {
+private fun ResultSection(state: DiceUiState, onNextRound: () -> Unit, onShowStats: () -> Unit, onFinish: () -> Unit) {
     val won = state.isWin == true
     val winAmount = state.lastWinAmount
     val betLabel = if (state.bets.size == 1) {
@@ -337,24 +350,25 @@ private fun ResultSection(state: DiceUiState, onNextRound: () -> Unit, onFinish:
         )
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(if (won) "🎉 승리!" else "😢 패배", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-            Text(betLabel, color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-            Spacer(Modifier.height(4.dp))
+            Text(if (won) "🎉 승리!" else "😢 패배", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text(betLabel, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            Spacer(Modifier.height(2.dp))
             Text(
                 text = if (winAmount >= 0) "+\$$winAmount" else "-\$${-winAmount}",
-                fontSize = 22.sp,
+                fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
         }
     }
-    Spacer(Modifier.height(12.dp))
-    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        Button(onClick = onNextRound) { Text("다시 배팅") }
-        OutlinedButton(onClick = onFinish) { Text("끝내기", color = Color.White) }
+    Spacer(Modifier.height(4.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Button(onClick = onNextRound, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) { Text("다시 배팅", fontSize = 12.sp) }
+        OutlinedButton(onClick = onShowStats, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) { Text("통계", color = Color.White, fontSize = 12.sp) }
+        OutlinedButton(onClick = onFinish, contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)) { Text("끝내기", color = Color.White, fontSize = 12.sp) }
     }
 }
 
@@ -373,9 +387,9 @@ private fun BetSectionLabel(text: String) {
         text = text,
         color = GoldAccent,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
+        fontSize = 11.sp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 6.dp)
+            .padding(bottom = 3.dp)
     )
 }

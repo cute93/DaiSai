@@ -76,6 +76,7 @@ class DiceRollViewModel : ViewModel() {
 
     fun onDiceDone() {
         _uiState.update { state ->
+            if (state.phase != GamePhase.ROLLING) return@update state
             val newCount = state.doneCount + 1
             if (newCount < 3) return@update state.copy(doneCount = newCount)
 

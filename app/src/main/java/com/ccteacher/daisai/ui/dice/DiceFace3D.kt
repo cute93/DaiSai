@@ -113,7 +113,7 @@ fun DiceFace3D(
     rotY: Float,
     rotZ: Float,
     modifier: Modifier = Modifier,
-    diceSize: Dp = 80.dp
+    diceSize: Dp = 48.dp
 ) {
     val faces = STANDARD_FACES[targetValue] ?: STANDARD_FACES[1]!!
 

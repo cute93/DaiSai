@@ -21,6 +21,7 @@ import kotlin.random.Random
 fun DiceRollAnimation(
     targetValue: Int,
     rollKey: Int,
+    rollDone: Boolean,
     onDone: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -34,7 +35,7 @@ fun DiceRollAnimation(
     val instanceSeed = remember { System.nanoTime().toInt() }
 
     LaunchedEffect(rollKey) {
-        if (rollKey == 0) {
+        if (rollKey == 0 || rollDone) {
             displayValue = targetValue
             return@LaunchedEffect
         }
